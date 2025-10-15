@@ -129,7 +129,7 @@
                     setLoading(true);
                     setError(null);
                     
-                    const response = await fetch('alimentos-sample.txt');
+                    const response = await fetch('alimentos.csv');
                     
                     if (!response.ok) {
                         throw new Error('Ficheiro CSV não encontrado no repositório');
