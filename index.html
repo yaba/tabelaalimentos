@@ -16,13 +16,21 @@
     <style>
         body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .dark body { background: #0f172a; }
     </style>
+    <script>
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+    </script>
 </head>
 <body>
     <div id="root"></div>
     
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useMemo } = React;
         
         // Lucide icons as components
         const Search = () => (
@@ -58,6 +66,32 @@
                 <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
         );
+        
+        const Moon = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+        );
+        
+        const Sun = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+        );
+        
+        const Filter = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
+        );
 
         function FoodNutritionApp() {
             const [foods, setFoods] = useState([]);
@@ -65,18 +99,37 @@
             const [expandedId, setExpandedId] = useState(null);
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState(null);
+            const [darkMode, setDarkMode] = useState(
+                localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)
+            );
+            const [showFilters, setShowFilters] = useState(false);
+            const [filters, setFilters] = useState({
+                categoria: '',
+                fodmap: '',
+                refeicao: '',
+                periodo: ''
+            });
 
             useEffect(() => {
                 loadCSVFromRepo();
             }, []);
+
+            useEffect(() => {
+                if (darkMode) {
+                    document.documentElement.classList.add('dark');
+                    localStorage.theme = 'dark';
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.theme = 'light';
+                }
+            }, [darkMode]);
 
             const loadCSVFromRepo = async () => {
                 try {
                     setLoading(true);
                     setError(null);
                     
-                    // Try to load from the same directory (GitHub repo)
-                    const response = await fetch('alimentos.csv');
+                    const response = await fetch('alimentos-sample.txt');
                     
                     if (!response.ok) {
                         throw new Error('Ficheiro CSV não encontrado no repositório');
@@ -91,7 +144,6 @@
                         complete: (results) => {
                             setFoods(results.data);
                             setLoading(false);
-                            // Save to localStorage for offline use
                             localStorage.setItem('foodsData', JSON.stringify(results.data));
                         },
                         error: (error) => {
@@ -140,17 +192,60 @@
                 }
             };
 
+            // Extract unique values for filters
+            const filterOptions = useMemo(() => {
+                const categorias = [...new Set(foods.map(f => f.Categoria).filter(Boolean))].sort();
+                const fodmaps = [...new Set(foods.map(f => f.FODMAP).filter(Boolean))].sort();
+                const refeicoes = [...new Set(foods.flatMap(f => f.Refeicao ? f.Refeicao.split(',').map(r => r.trim()) : []))].sort();
+                const periodos = [...new Set(foods.flatMap(f => f.Periodo ? f.Periodo.split(',').map(p => p.trim()) : []))].sort();
+                
+                return { categorias, fodmaps, refeicoes, periodos };
+            }, [foods]);
+
             const filteredFoods = foods.filter(food => {
-                if (!searchTerm) return true;
-                const search = searchTerm.toLowerCase();
-                return (
-                    (food.Alimento && food.Alimento.toLowerCase().includes(search)) ||
-                    (food.Categoria && food.Categoria.toLowerCase().includes(search)) ||
-                    (food.Beneficios && food.Beneficios.toLowerCase().includes(search)) ||
-                    (food.PrincipalComponente && food.PrincipalComponente.toLowerCase().includes(search)) ||
-                    (food.FODMAP && food.FODMAP.toLowerCase().includes(search))
-                );
+                // Text search
+                if (searchTerm) {
+                    const search = searchTerm.toLowerCase();
+                    const matches = 
+                        (food.Alimento && food.Alimento.toLowerCase().includes(search)) ||
+                        (food.Categoria && food.Categoria.toLowerCase().includes(search)) ||
+                        (food.Beneficios && food.Beneficios.toLowerCase().includes(search)) ||
+                        (food.PrincipalComponente && food.PrincipalComponente.toLowerCase().includes(search)) ||
+                        (food.FODMAP && food.FODMAP.toLowerCase().includes(search));
+                    if (!matches) return false;
+                }
+                
+                // Categoria filter
+                if (filters.categoria && food.Categoria !== filters.categoria) return false;
+                
+                // FODMAP filter
+                if (filters.fodmap && food.FODMAP !== filters.fodmap) return false;
+                
+                // Refeicao filter
+                if (filters.refeicao) {
+                    const refeicoes = food.Refeicao ? food.Refeicao.split(',').map(r => r.trim()) : [];
+                    if (!refeicoes.includes(filters.refeicao)) return false;
+                }
+                
+                // Periodo filter
+                if (filters.periodo) {
+                    const periodos = food.Periodo ? food.Periodo.split(',').map(p => p.trim()) : [];
+                    if (!periodos.includes(filters.periodo)) return false;
+                }
+                
+                return true;
             });
+
+            const clearFilters = () => {
+                setFilters({
+                    categoria: '',
+                    fodmap: '',
+                    refeicao: '',
+                    periodo: ''
+                });
+            };
+
+            const activeFiltersCount = Object.values(filters).filter(v => v !== '').length;
 
             const toggleExpand = (codigo) => {
                 setExpandedId(expandedId === codigo ? null : codigo);
@@ -195,10 +290,10 @@
 
             if (loading) {
                 return (
-                    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
+                    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
                         <div className="text-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-                            <p className="text-gray-600">A carregar dados...</p>
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 dark:border-green-400 mx-auto mb-4"></div>
+                            <p className="text-gray-600 dark:text-gray-300">A carregar dados...</p>
                         </div>
                     </div>
                 );
@@ -206,11 +301,11 @@
 
             if (foods.length === 0) {
                 return (
-                    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+                    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
+                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-8 max-w-md w-full text-center">
                             <div className="text-6xl mb-4">📁</div>
-                            <h2 className="text-2xl font-bold text-gray-800 mb-4">Carregar Ficheiro CSV</h2>
-                            <p className="text-gray-600 mb-6">
+                            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">Carregar Ficheiro CSV</h2>
+                            <p className="text-gray-600 dark:text-gray-300 mb-6">
                                 Não foi possível carregar o ficheiro do repositório. Por favor, carregue manualmente.
                             </p>
                             <input
@@ -228,7 +323,7 @@
                                 Escolher Ficheiro
                             </label>
                             {error && (
-                                <p className="text-red-600 mt-4 text-sm">{error}</p>
+                                <p className="text-red-600 dark:text-red-400 mt-4 text-sm">{error}</p>
                             )}
                         </div>
                     </div>
@@ -236,52 +331,137 @@
             }
 
             return (
-                <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 pb-20">
-                    <div className="sticky top-0 z-10 bg-white shadow-md">
+                <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 pb-20 transition-colors">
+                    <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 shadow-md transition-colors">
                         <div className="max-w-4xl mx-auto p-4">
                             <div className="flex justify-between items-center mb-4">
-                                <h1 className="text-2xl font-bold text-gray-800">🥗 Alimentos & Nutrição</h1>
-                                <label
-                                    htmlFor="csvInputUpdate"
-                                    className="flex items-center gap-1 text-sm bg-green-600 text-white px-3 py-2 rounded cursor-pointer hover:bg-green-700 transition-colors"
-                                >
-                                    <Upload />
-                                    <span className="hidden sm:inline">Novo CSV</span>
-                                </label>
-                                <input
-                                    type="file"
-                                    id="csvInputUpdate"
-                                    accept=".csv,.txt"
-                                    onChange={handleFileUpload}
-                                    className="hidden"
-                                />
+                                <h1 className="text-2xl font-bold text-gray-800 dark:text-white">🥗 Alimentos & Nutrição</h1>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setDarkMode(!darkMode)}
+                                        className="p-2 rounded-lg bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+                                        aria-label="Toggle dark mode"
+                                    >
+                                        {darkMode ? <Sun /> : <Moon />}
+                                    </button>
+                                    <label
+                                        htmlFor="csvInputUpdate"
+                                        className="flex items-center gap-1 text-sm bg-green-600 text-white px-3 py-2 rounded-lg cursor-pointer hover:bg-green-700 transition-colors"
+                                    >
+                                        <Upload />
+                                        <span className="hidden sm:inline">CSV</span>
+                                    </label>
+                                    <input
+                                        type="file"
+                                        id="csvInputUpdate"
+                                        accept=".csv,.txt"
+                                        onChange={handleFileUpload}
+                                        className="hidden"
+                                    />
+                                </div>
                             </div>
                             {error && (
-                                <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+                                <div className="mb-3 p-2 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded text-sm text-yellow-800 dark:text-yellow-300">
                                     ⚠️ {error}
                                 </div>
                             )}
-                            <div className="relative">
-                                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                            <div className="relative mb-3">
+                                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500">
                                     <Search />
                                 </div>
                                 <input
                                     type="text"
-                                    placeholder="Pesquisar alimentos, benefícios, categoria..."
+                                    placeholder="Pesquisar alimentos, categoria, componentes..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-10 pr-10 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-green-500 transition-colors"
+                                    className="w-full pl-10 pr-10 py-3 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:outline-none focus:border-green-500 dark:focus:border-green-400 transition-colors bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                                 />
                                 {searchTerm && (
                                     <button
                                         onClick={() => setSearchTerm('')}
-                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                                     >
                                         <X />
                                     </button>
                                 )}
                             </div>
-                            <p className="text-sm text-gray-500 mt-2">
+                            
+                            <button
+                                onClick={() => setShowFilters(!showFilters)}
+                                className="flex items-center gap-2 text-sm bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors mb-3"
+                            >
+                                <Filter />
+                                Filtros {activeFiltersCount > 0 && `(${activeFiltersCount})`}
+                            </button>
+                            
+                            {showFilters && (
+                                <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-4 mb-3 space-y-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoria</label>
+                                            <select
+                                                value={filters.categoria}
+                                                onChange={(e) => setFilters({...filters, categoria: e.target.value})}
+                                                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:border-green-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                                            >
+                                                <option value="">Todas</option>
+                                                {filterOptions.categorias.map(cat => (
+                                                    <option key={cat} value={cat}>{cat}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">FODMAP</label>
+                                            <select
+                                                value={filters.fodmap}
+                                                onChange={(e) => setFilters({...filters, fodmap: e.target.value})}
+                                                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:border-green-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                                            >
+                                                <option value="">Todos</option>
+                                                {filterOptions.fodmaps.map(fod => (
+                                                    <option key={fod} value={fod}>{fod}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Refeição</label>
+                                            <select
+                                                value={filters.refeicao}
+                                                onChange={(e) => setFilters({...filters, refeicao: e.target.value})}
+                                                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:border-green-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                                            >
+                                                <option value="">Todas</option>
+                                                {filterOptions.refeicoes.map(ref => (
+                                                    <option key={ref} value={ref}>{ref}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Período</label>
+                                            <select
+                                                value={filters.periodo}
+                                                onChange={(e) => setFilters({...filters, periodo: e.target.value})}
+                                                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:border-green-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                                            >
+                                                <option value="">Todos</option>
+                                                {filterOptions.periodos.map(per => (
+                                                    <option key={per} value={per}>{per}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    {activeFiltersCount > 0 && (
+                                        <button
+                                            onClick={clearFilters}
+                                            className="text-sm text-green-600 dark:text-green-400 hover:underline"
+                                        >
+                                            Limpar filtros
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                            
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
                                 {filteredFoods.length} {filteredFoods.length === 1 ? 'resultado' : 'resultados'}
                             </p>
                         </div>
@@ -290,107 +470,103 @@
                     <div className="max-w-4xl mx-auto p-4 space-y-3">
                         {filteredFoods.length === 0 ? (
                             <div className="text-center py-12">
-                                <p className="text-gray-500 text-lg">Nenhum alimento encontrado</p>
-                                <p className="text-gray-400 text-sm mt-2">Tente uma pesquisa diferente</p>
+                                <p className="text-gray-500 dark:text-gray-400 text-lg">Nenhum alimento encontrado</p>
+                                <p className="text-gray-400 dark:text-gray-500 text-sm mt-2">Tente uma pesquisa diferente ou ajuste os filtros</p>
                             </div>
                         ) : (
                             filteredFoods.map((food) => (
                                 <div
                                     key={food.Codigo}
-                                    className="bg-white rounded-lg shadow-md overflow-hidden transition-all hover:shadow-lg"
+                                    className="bg-white dark:bg-slate-800 rounded-lg shadow-md overflow-hidden transition-all hover:shadow-lg"
                                 >
                                     <div
                                         onClick={() => toggleExpand(food.Codigo)}
-                                        className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                                        className="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
                                     >
                                         <div className="flex justify-between items-start">
                                             <div className="flex-1">
-                                                <h2 className="text-lg font-semibold text-gray-800 mb-1">
+                                                <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-1">
                                                     {food.Alimento}
                                                 </h2>
                                                 <div className="flex flex-wrap gap-2 mb-2">
-                                                    <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                                                    <span className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 text-xs rounded-full">
                                                         {food.Categoria}
                                                     </span>
                                                     <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                                                        food.FODMAP === 'Baixo' ? 'bg-green-100 text-green-700' :
-                                                        food.FODMAP === 'Medio' ? 'bg-yellow-100 text-yellow-700' :
-                                                        'bg-red-100 text-red-700'
+                                                        food.FODMAP === 'Baixo' ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200' :
+                                                        food.FODMAP === 'Medio' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200' :
+                                                        'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200'
                                                     }`}>
                                                         FODMAP: {food.FODMAP}
                                                     </span>
                                                     {food.Probiotico === 1 && (
-                                                        <span className="inline-block px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                                                        <span className="inline-block px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200 text-xs rounded-full">
                                                             🦠 Probiótico
                                                         </span>
                                                     )}
                                                 </div>
-                                                <p className="text-sm text-gray-600 line-clamp-2">
-                                                    <span className="font-medium">Benefícios:</span> {food.Beneficios}
+                                                <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
+                                                    <span className="font-medium">Componentes:</span> {food.PrincipalComponente || '-'}
                                                 </p>
                                             </div>
-                                            <div className="ml-4">
+                                            <div className="ml-4 text-gray-400 dark:text-gray-500">
                                                 {expandedId === food.Codigo ? <ChevronUp /> : <ChevronDown />}
                                             </div>
                                         </div>
                                     </div>
 
                                     {expandedId === food.Codigo && (
-                                        <div className="border-t border-gray-200 bg-gray-50 p-4 space-y-4">
+                                        <div className="border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 p-4 space-y-4">
                                             <div>
-                                                <h3 className="font-semibold text-gray-700 mb-2">📋 Informação Geral</h3>
+                                                <h3 className="font-semibold text-gray-700 dark:text-gray-200 mb-2">📋 Informação Geral</h3>
                                                 <div className="grid grid-cols-1 gap-2 text-sm">
                                                     <div className="flex justify-between">
-                                                        <span className="text-gray-600">Código:</span>
-                                                        <span className="font-medium">{food.Codigo}</span>
+                                                        <span className="text-gray-600 dark:text-gray-400">Benefícios:</span>
+                                                        <span className="font-medium text-right dark:text-gray-200">{renderValue(food.Beneficios)}</span>
                                                     </div>
                                                     <div className="flex justify-between">
-                                                        <span className="text-gray-600">Principal Componente:</span>
-                                                        <span className="font-medium text-right">{renderValue(food.PrincipalComponente)}</span>
+                                                        <span className="text-gray-600 dark:text-gray-400">Refeição:</span>
+                                                        <span className="font-medium text-right dark:text-gray-200">{renderValue(food.Refeicao)}</span>
                                                     </div>
                                                     <div className="flex justify-between">
-                                                        <span className="text-gray-600">Refeição:</span>
-                                                        <span className="font-medium text-right">{renderValue(food.Refeicao)}</span>
-                                                    </div>
-                                                    <div className="flex justify-between">
-                                                        <span className="text-gray-600">Período:</span>
-                                                        <span className="font-medium text-right">{renderValue(food.Periodo)}</span>
+                                                        <span className="text-gray-600 dark:text-gray-400">Período:</span>
+                                                        <span className="font-medium text-right dark:text-gray-200">{renderValue(food.Periodo)}</span>
                                                     </div>
                                                 </div>
                                             </div>
 
                                             <div>
-                                                <h3 className="font-semibold text-gray-700 mb-2">⚡ Energia & Macros</h3>
+                                                <h3 className="font-semibold text-gray-700 dark:text-gray-200 mb-2">⚡ Energia & Macros</h3>
                                                 <div className="grid grid-cols-2 gap-2 text-sm">
-                                                    <div className="bg-white p-2 rounded">
-                                                        <div className="text-gray-600 text-xs">Energia</div>
-                                                        <div className="font-bold text-green-600">{renderValue(food.energia_kcal)} kcal</div>
+                                                    <div className="bg-white dark:bg-slate-800 p-2 rounded">
+                                                        <div className="text-gray-600 dark:text-gray-400 text-xs">Energia</div>
+                                                        <div className="font-bold text-green-600 dark:text-green-400">{renderValue(food.energia_kcal)} kcal</div>
                                                     </div>
-                                                    <div className="bg-white p-2 rounded">
-                                                        <div className="text-gray-600 text-xs">Proteínas</div>
-                                                        <div className="font-bold text-blue-600">{renderValue(food.proteinas)} g</div>
+                                                    <div className="bg-white dark:bg-slate-800 p-2 rounded">
+                                                        <div className="text-gray-600 dark:text-gray-400 text-xs">Proteínas</div>
+                                                        <div className="font-bold text-blue-600 dark:text-blue-400">{renderValue(food.proteinas)} g</div>
                                                     </div>
-                                                    <div className="bg-white p-2 rounded">
-                                                        <div className="text-gray-600 text-xs">Lípidos</div>
-                                                        <div className="font-bold text-yellow-600">{renderValue(food.lipidos_g)} g</div>
+                                                    <div className="bg-white dark:bg-slate-800 p-2 rounded">
+                                                        <div className="text-gray-600 dark:text-gray-400 text-xs">Lípidos</div>
+                                                        <div className="font-bold text-yellow-600 dark:text-yellow-400">{renderValue(food.lipidos_g)} g</div>
                                                     </div>
-                                                    <div className="bg-white p-2 rounded">
-                                                        <div className="text-gray-600 text-xs">Hidratos</div>
-                                                        <div className="font-bold text-purple-600">{renderValue(food.hidratos_de_carbono)} g</div>
+                                                    <div className="bg-white dark:bg-slate-800 p-2 rounded">
+                                                        <div className="text-gray-600 dark:text-gray-400 text-xs">Hidratos</div>
+                                                        <div className="font-bold text-purple-600 dark:text-purple-400">{renderValue(food.hidratos_de_carbono)} g</div>
                                                     </div>
                                                 </div>
                                             </div>
 
                                             <div>
-                                                <h3 className="font-semibold text-gray-700 mb-2">🔬 Vitaminas & Minerais</h3>
+                                                <h3 className="font-semibold text-gray-700 dark:text-gray-200 mb-2">🔬 Vitaminas & Minerais</h3>
                                                 <div className="grid grid-cols-2 gap-2 text-sm max-h-64 overflow-y-auto">
                                                     {nutritionFields.map(field => {
                                                         const value = food[field.key];
                                                         if (value === null || value === undefined || value === 0) return null;
                                                         return (
-                                                            <div key={field.key} className="flex justify-between bg-white p-2 rounded">
-                                                                <span className="text-gray-600 text-xs">{field.label}:</span>
-                                                                <span className="font-medium text-xs">{renderValue(value)}</span>
+                                                            <div key={field.key} className="flex justify-between bg-white dark:bg-slate-800 p-2 rounded">
+                                                                <span className="text-gray-600 dark:text-gray-400 text-xs">{field.label}:</span>
+                                                                <span className="font-medium text-xs dark:text-gray-200">{renderValue(value)}</span>
                                                             </div>
                                                         );
                                                     })}
@@ -398,27 +574,27 @@
                                             </div>
 
                                             <div>
-                                                <h3 className="font-semibold text-gray-700 mb-2">🥑 Ácidos Gordos</h3>
+                                                <h3 className="font-semibold text-gray-700 dark:text-gray-200 mb-2">🥑 Ácidos Gordos</h3>
                                                 <div className="space-y-1 text-sm">
                                                     <div className="flex justify-between">
-                                                        <span className="text-gray-600">Saturados:</span>
-                                                        <span className="font-medium">{renderValue(food.acidos_gordos_saturados_mau)} g</span>
+                                                        <span className="text-gray-600 dark:text-gray-400">Saturados:</span>
+                                                        <span className="font-medium dark:text-gray-200">{renderValue(food.acidos_gordos_saturados_mau)} g</span>
                                                     </div>
                                                     <div className="flex justify-between">
-                                                        <span className="text-gray-600">Monoinsaturados:</span>
-                                                        <span className="font-medium">{renderValue(food.acidos_gordos_monoinsaturados)} g</span>
+                                                        <span className="text-gray-600 dark:text-gray-400">Monoinsaturados:</span>
+                                                        <span className="font-medium dark:text-gray-200">{renderValue(food.acidos_gordos_monoinsaturados)} g</span>
                                                     </div>
                                                     <div className="flex justify-between">
-                                                        <span className="text-gray-600">Polinsaturados (Omegas):</span>
-                                                        <span className="font-medium">{renderValue(food.acidos_gordos_polinsaturados_omegas)} g</span>
+                                                        <span className="text-gray-600 dark:text-gray-400">Polinsaturados (Omegas):</span>
+                                                        <span className="font-medium dark:text-gray-200">{renderValue(food.acidos_gordos_polinsaturados_omegas)} g</span>
                                                     </div>
                                                     <div className="flex justify-between">
-                                                        <span className="text-gray-600">Ácido Linoleico (Omega-6):</span>
-                                                        <span className="font-medium">{renderValue(food.acido_linoleico_omega6)} g</span>
+                                                        <span className="text-gray-600 dark:text-gray-400">Ácido Linoleico (Omega-6):</span>
+                                                        <span className="font-medium dark:text-gray-200">{renderValue(food.acido_linoleico_omega6)} g</span>
                                                     </div>
                                                     <div className="flex justify-between">
-                                                        <span className="text-gray-600">Trans:</span>
-                                                        <span className="font-medium">{renderValue(food.acidos_gordos_trans_mau)} g</span>
+                                                        <span className="text-gray-600 dark:text-gray-400">Trans:</span>
+                                                        <span className="font-medium dark:text-gray-200">{renderValue(food.acidos_gordos_trans_mau)} g</span>
                                                     </div>
                                                 </div>
                                             </div>
