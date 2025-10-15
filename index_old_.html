@@ -50,14 +50,6 @@
                 <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
         );
-        
-        const Upload = () => (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="17 8 12 3 7 8"></polyline>
-                <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-        );
 
         function FoodNutritionApp() {
             const [foods, setFoods] = useState([]);
@@ -67,53 +59,45 @@
             const [error, setError] = useState(null);
 
             useEffect(() => {
-                loadCSVFromRepo();
+                loadCSV();
             }, []);
 
-            const loadCSVFromRepo = async () => {
+            const loadCSV = async () => {
                 try {
-                    setLoading(true);
-                    setError(null);
-                    
-                    // Try to load from the same directory (GitHub repo)
-                    const response = await fetch('alimentos.csv');
-                    
-                    if (!response.ok) {
-                        throw new Error('Ficheiro CSV não encontrado no repositório');
-                    }
-                    
-                    const csvText = await response.text();
-                    
-                    Papa.parse(csvText, {
-                        header: true,
-                        skipEmptyLines: true,
-                        dynamicTyping: true,
-                        complete: (results) => {
-                            setFoods(results.data);
+                    // Try to load from uploaded CSV file first
+                    const input = document.getElementById('csvInput');
+                    if (input && input.files && input.files[0]) {
+                        const file = input.files[0];
+                        Papa.parse(file, {
+                            header: true,
+                            skipEmptyLines: true,
+                            dynamicTyping: true,
+                            complete: (results) => {
+                                setFoods(results.data);
+                                setLoading(false);
+                                localStorage.setItem('foodsData', JSON.stringify(results.data));
+                            },
+                            error: (error) => {
+                                console.error('Error parsing CSV:', error);
+                                setError('Erro ao ler o ficheiro CSV');
+                                setLoading(false);
+                            }
+                        });
+                    } else {
+                        // Try to load from localStorage
+                        const savedData = localStorage.getItem('foodsData');
+                        if (savedData) {
+                            setFoods(JSON.parse(savedData));
                             setLoading(false);
-                            // Save to localStorage for offline use
-                            localStorage.setItem('foodsData', JSON.stringify(results.data));
-                        },
-                        error: (error) => {
-                            console.error('Error parsing CSV:', error);
-                            loadFromLocalStorage();
+                        } else {
+                            setLoading(false);
+                            setError('Por favor, carregue um ficheiro CSV');
                         }
-                    });
+                    }
                 } catch (error) {
-                    console.error('Error loading CSV from repo:', error);
-                    loadFromLocalStorage();
-                }
-            };
-
-            const loadFromLocalStorage = () => {
-                const savedData = localStorage.getItem('foodsData');
-                if (savedData) {
-                    setFoods(JSON.parse(savedData));
+                    console.error('Error loading CSV:', error);
+                    setError('Erro ao carregar dados');
                     setLoading(false);
-                    setError('A usar dados guardados (offline)');
-                } else {
-                    setLoading(false);
-                    setError('Por favor, carregue um ficheiro CSV');
                 }
             };
 
@@ -204,14 +188,14 @@
                 );
             }
 
-            if (foods.length === 0) {
+            if (error || foods.length === 0) {
                 return (
                     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
                         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
                             <div className="text-6xl mb-4">📁</div>
                             <h2 className="text-2xl font-bold text-gray-800 mb-4">Carregar Ficheiro CSV</h2>
                             <p className="text-gray-600 mb-6">
-                                Não foi possível carregar o ficheiro do repositório. Por favor, carregue manualmente.
+                                Por favor, carregue o seu ficheiro CSV com os dados dos alimentos
                             </p>
                             <input
                                 type="file"
@@ -222,9 +206,8 @@
                             />
                             <label
                                 htmlFor="csvInput"
-                                className="inline-flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold cursor-pointer hover:bg-green-700 transition-colors"
+                                className="inline-block bg-green-600 text-white px-6 py-3 rounded-lg font-semibold cursor-pointer hover:bg-green-700 transition-colors"
                             >
-                                <Upload />
                                 Escolher Ficheiro
                             </label>
                             {error && (
@@ -243,10 +226,9 @@
                                 <h1 className="text-2xl font-bold text-gray-800">🥗 Alimentos & Nutrição</h1>
                                 <label
                                     htmlFor="csvInputUpdate"
-                                    className="flex items-center gap-1 text-sm bg-green-600 text-white px-3 py-2 rounded cursor-pointer hover:bg-green-700 transition-colors"
+                                    className="text-sm bg-green-600 text-white px-3 py-1 rounded cursor-pointer hover:bg-green-700 transition-colors"
                                 >
-                                    <Upload />
-                                    <span className="hidden sm:inline">Novo CSV</span>
+                                    📤 Novo CSV
                                 </label>
                                 <input
                                     type="file"
@@ -256,11 +238,6 @@
                                     className="hidden"
                                 />
                             </div>
-                            {error && (
-                                <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-                                    ⚠️ {error}
-                                </div>
-                            )}
                             <div className="relative">
                                 <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
                                     <Search />
