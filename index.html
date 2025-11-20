@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,11 +13,25 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥗</text></svg>">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥗</text></svg>">
     <style>
-        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .dark body { background: #0f172a; }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .dark body {
+            background: #0f172a;
+        }
     </style>
     <script>
         if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -26,12 +41,13 @@
         }
     </script>
 </head>
+
 <body>
     <div id="root"></div>
-    
+
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
-        
+
         // Lucide icons as components
         const Search = () => (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -39,26 +55,26 @@
                 <path d="m21 21-4.35-4.35"></path>
             </svg>
         );
-        
+
         const ChevronDown = () => (
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
         );
-        
+
         const ChevronUp = () => (
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="18 15 12 9 6 15"></polyline>
             </svg>
         );
-        
+
         const X = () => (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
         );
-        
+
         const Upload = () => (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -66,13 +82,13 @@
                 <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
         );
-        
+
         const Moon = () => (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
             </svg>
         );
-        
+
         const Sun = () => (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="5"></circle>
@@ -86,7 +102,7 @@
                 <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
             </svg>
         );
-        
+
         const Filter = () => (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
@@ -128,15 +144,15 @@
                 try {
                     setLoading(true);
                     setError(null);
-                    
+
                     const response = await fetch('alimentos.csv');
-                    
+
                     if (!response.ok) {
                         throw new Error('Ficheiro CSV não encontrado no repositório');
                     }
-                    
+
                     const csvText = await response.text();
-                    
+
                     Papa.parse(csvText, {
                         header: true,
                         skipEmptyLines: true,
@@ -198,7 +214,7 @@
                 const fodmaps = [...new Set(foods.map(f => f.FODMAP).filter(Boolean))].sort();
                 const refeicoes = [...new Set(foods.flatMap(f => f.Refeicao ? f.Refeicao.split(',').map(r => r.trim()) : []))].sort();
                 const periodos = [...new Set(foods.flatMap(f => f.Periodo ? f.Periodo.split(',').map(p => p.trim()) : []))].sort();
-                
+
                 return { categorias, fodmaps, refeicoes, periodos };
             }, [foods]);
 
@@ -206,7 +222,7 @@
                 // Text search
                 if (searchTerm) {
                     const search = searchTerm.toLowerCase();
-                    const matches = 
+                    const matches =
                         (food.Alimento && food.Alimento.toLowerCase().includes(search)) ||
                         (food.Categoria && food.Categoria.toLowerCase().includes(search)) ||
                         (food.Beneficios && food.Beneficios.toLowerCase().includes(search)) ||
@@ -214,25 +230,25 @@
                         (food.FODMAP && food.FODMAP.toLowerCase().includes(search));
                     if (!matches) return false;
                 }
-                
+
                 // Categoria filter
                 if (filters.categoria && food.Categoria !== filters.categoria) return false;
-                
+
                 // FODMAP filter
                 if (filters.fodmap && food.FODMAP !== filters.fodmap) return false;
-                
+
                 // Refeicao filter
                 if (filters.refeicao) {
                     const refeicoes = food.Refeicao ? food.Refeicao.split(',').map(r => r.trim()) : [];
                     if (!refeicoes.includes(filters.refeicao)) return false;
                 }
-                
+
                 // Periodo filter
                 if (filters.periodo) {
                     const periodos = food.Periodo ? food.Periodo.split(',').map(p => p.trim()) : [];
                     if (!periodos.includes(filters.periodo)) return false;
                 }
-                
+
                 return true;
             });
 
@@ -279,7 +295,7 @@
                 { key: 'triptofano_60_mg', label: 'Triptofano (mg)' },
                 { key: 'energia_kcal', label: 'Energia (kcal)' },
                 { key: 'lipidos_g', label: 'Lípidos (g)' },
-                { key: 'hidratos_de_carbono', label: 'Hidratos Carbono (g)' },
+                { key: 'hidratos_de_carbono', label: 'Hidratos de Carbono (g)' },
                 { key: 'acucares', label: 'Açúcares (g)' },
                 { key: 'fibra', label: 'Fibra (g)' },
                 { key: 'proteinas', label: 'Proteínas (g)' },
@@ -385,7 +401,7 @@
                                     </button>
                                 )}
                             </div>
-                            
+
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
                                 className="flex items-center gap-2 text-sm bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors mb-3"
@@ -393,7 +409,7 @@
                                 <Filter />
                                 Filtros {activeFiltersCount > 0 && `(${activeFiltersCount})`}
                             </button>
-                            
+
                             {showFilters && (
                                 <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-4 mb-3 space-y-3">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -401,7 +417,7 @@
                                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoria</label>
                                             <select
                                                 value={filters.categoria}
-                                                onChange={(e) => setFilters({...filters, categoria: e.target.value})}
+                                                onChange={(e) => setFilters({ ...filters, categoria: e.target.value })}
                                                 className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:border-green-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                                             >
                                                 <option value="">Todas</option>
@@ -414,7 +430,7 @@
                                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">FODMAP</label>
                                             <select
                                                 value={filters.fodmap}
-                                                onChange={(e) => setFilters({...filters, fodmap: e.target.value})}
+                                                onChange={(e) => setFilters({ ...filters, fodmap: e.target.value })}
                                                 className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:border-green-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                                             >
                                                 <option value="">Todos</option>
@@ -427,7 +443,7 @@
                                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Refeição</label>
                                             <select
                                                 value={filters.refeicao}
-                                                onChange={(e) => setFilters({...filters, refeicao: e.target.value})}
+                                                onChange={(e) => setFilters({ ...filters, refeicao: e.target.value })}
                                                 className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:border-green-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                                             >
                                                 <option value="">Todas</option>
@@ -440,7 +456,7 @@
                                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Período</label>
                                             <select
                                                 value={filters.periodo}
-                                                onChange={(e) => setFilters({...filters, periodo: e.target.value})}
+                                                onChange={(e) => setFilters({ ...filters, periodo: e.target.value })}
                                                 className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:border-green-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                                             >
                                                 <option value="">Todos</option>
@@ -460,7 +476,7 @@
                                     )}
                                 </div>
                             )}
-                            
+
                             <p className="text-sm text-gray-500 dark:text-gray-400">
                                 {filteredFoods.length} {filteredFoods.length === 1 ? 'resultado' : 'resultados'}
                             </p>
@@ -492,11 +508,10 @@
                                                     <span className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 text-xs rounded-full">
                                                         {food.Categoria}
                                                     </span>
-                                                    <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                                                        food.FODMAP === 'Baixo' ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200' :
-                                                        food.FODMAP === 'Medio' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200' :
-                                                        'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200'
-                                                    }`}>
+                                                    <span className={`inline-block px-2 py-1 text-xs rounded-full ${food.FODMAP === 'Baixo' ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200' :
+                                                            food.FODMAP === 'Medio' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200' :
+                                                                'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200'
+                                                        }`}>
                                                         FODMAP: {food.FODMAP}
                                                     </span>
                                                     {food.Probiotico === 1 && (
@@ -611,4 +626,5 @@
         ReactDOM.render(<FoodNutritionApp />, document.getElementById('root'));
     </script>
 </body>
+
 </html>
